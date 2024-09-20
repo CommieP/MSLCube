@@ -1,0 +1,79 @@
+<head></head>
+
+<title>Cube Class Demo</title>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+<link type="text/css" rel="stylesheet" href="css/main.css">
+<script src="https://code.jquery.com/jquery-3.6.0.js" integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="
+    crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <canvas id="c"></canvas>
+</body>
+
+<script type="module">
+
+    // Module imports
+    import * as THREE from "../build/three.module.js";
+    import { OrbitControls } from '../jsm/OrbitControls.js';
+    import { RenderPass } from '../jsm/RenderPass.js';
+    import { OutputPass } from '../jsm/OutputPass.js';
+    import { EffectComposer } from '../jsm/EffectComposer.js';
+    import { UnrealBloomPass } from '../jsm/UnrealBloomPass.js'
+
+    // Canvas Initialization
+    const canvas = document.querySelector('#c');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, });
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+
+    // Camera Initialization
+    const fov = 75;
+    const aspect = (window.innerWidth / window.innerHeight);
+    const near = 0.1;
+    const far = 500;
+
+    const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    camera.position.z = -2;
+    camera.position.x = 0;
+    camera.rotation.y = 0;
+
+
+    // Controls
+    const controls = new OrbitControls(camera, document.body);
+    controls.update();
+
+    // Scene Initialization
+    const scene = new THREE.Scene();
+    const renderScene = new RenderPass(scene, camera);
+    const composer = new EffectComposer(renderer);
+    composer.addPass(renderScene);
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        1.6,
+        0.1,
+        0.1
+    );
+    composer.addPass(bloomPass);
+
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
+
+    // Animate
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        composer.render();
+    }
+
+    animate();
+
+</script>
