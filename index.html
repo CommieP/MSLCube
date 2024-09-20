@@ -1,79 +1,173 @@
-<head></head>
-
-<title>Cube Class Demo</title>
-
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-
-<link type="text/css" rel="stylesheet" href="css/main.css">
-<script src="https://code.jquery.com/jquery-3.6.0.js" integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="
-    crossorigin="anonymous"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Selective Bloom with Two Cubes</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 </head>
-
 <body>
-    <canvas id="c"></canvas>
-</body>
+    <!-- Vertex Shader -->
+    <script type="x-shader/x-vertex" id="vertexshader">
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+        }
+    </script>
 
-<script type="module">
+    <!-- Fragment Shader -->
+    <script type="x-shader/x-fragment" id="fragmentshader">
+        uniform sampler2D baseTexture;
+        uniform sampler2D bloomTexture;
+        varying vec2 vUv;
+        void main() {
+            gl_FragColor = ( texture2D( baseTexture, vUv ) + vec4( 1.0 ) * texture2D( bloomTexture, vUv ) );
+        }
+    </script>
 
-    // Module imports
-    import * as THREE from "../build/three.module.js";
-    import { OrbitControls } from '../jsm/OrbitControls.js';
-    import { RenderPass } from '../jsm/RenderPass.js';
-    import { OutputPass } from '../jsm/OutputPass.js';
-    import { EffectComposer } from '../jsm/EffectComposer.js';
-    import { UnrealBloomPass } from '../jsm/UnrealBloomPass.js'
+    <!-- Main Script -->
+    <script type="module">
 
-    // Canvas Initialization
-    const canvas = document.querySelector('#c');
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, });
-    renderer.setSize(window.innerWidth, window.innerHeight, false);
-    renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping
+        import * as THREE from './build/three.module.js';
+        import { OrbitControls } from './jsm/OrbitControls.js';
+        import { EffectComposer } from './jsm/EffectComposer.js';
+        import { RenderPass } from './jsm/RenderPass.js';
+        import { ShaderPass } from './jsm/ShaderPass.js';
+        import { UnrealBloomPass } from './jsm/UnrealBloomPass.js';
+        import { OutputPass } from './jsm/OutputPass.js';
 
-    // Camera Initialization
-    const fov = 75;
-    const aspect = (window.innerWidth / window.innerHeight);
-    const near = 0.1;
-    const far = 500;
+        // Bloom Layer
+        const BLOOM_SCENE = 1;
+        const bloomLayer = new THREE.Layers();
+        bloomLayer.set( BLOOM_SCENE );
 
-    const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-    camera.position.z = -2;
-    camera.position.x = 0;
-    camera.rotation.y = 0;
+        // Bloom Parameters
+        const params = {
+            bloomStrength: 0.5,
+            bloomThreshold: 0,
+            bloomRadius: 0.2
+        };
 
+        const darkMaterial = new THREE.MeshBasicMaterial( { color: 'black' } );
+        const materials = {};
 
-    // Controls
-    const controls = new OrbitControls(camera, document.body);
-    controls.update();
+        // Renderer Initialization
+        const renderer = new THREE.WebGLRenderer( { antialias: true } );
+        renderer.setPixelRatio( window.devicePixelRatio );
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        renderer.toneMapping = THREE.ReinhardToneMapping;
+        document.body.appendChild( renderer.domElement );
 
-    // Scene Initialization
-    const scene = new THREE.Scene();
-    const renderScene = new RenderPass(scene, camera);
-    const composer = new EffectComposer(renderer);
-    composer.addPass(renderScene);
-    const outputPass = new OutputPass();
-    composer.addPass(outputPass);
-    const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        1.6,
-        0.1,
-        0.1
-    );
-    composer.addPass(bloomPass);
+        // Scene and Camera
+        const scene = new THREE.Scene();
 
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
+        const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 100 );
+        camera.position.z = 5;
 
-    // Animate
-    function animate() {
-        requestAnimationFrame(animate);
+        // Controls
+        const controls = new OrbitControls( camera, renderer.domElement );
         controls.update();
-        composer.render();
-    }
 
-    animate();
+        // Objects
+        const geometry = new THREE.BoxGeometry();
+        const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
 
-</script>
+        // Glowing Cube
+        const glowingCube = new THREE.Mesh( geometry, material );
+        glowingCube.position.x = -1.5;
+        glowingCube.layers.enable( BLOOM_SCENE ); // Enable bloom layer
+        scene.add( glowingCube );
+
+        // Non-Glowing Cube
+        const normalCube = new THREE.Mesh( geometry, material );
+        normalCube.position.x = 1.5;
+        scene.add( normalCube ); // This cube is not added to the bloom layer
+
+        // Clone Materials
+        scene.traverse( ( obj ) => {
+            if ( obj.isMesh ) {
+                materials[ obj.uuid ] = obj.material;
+            }
+        });
+
+        // Post-Processing Setup
+        const renderScene = new RenderPass( scene, camera );
+
+        const bloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), params.bloomStrength, params.bloomRadius, params.bloomThreshold );
+
+        const bloomComposer = new EffectComposer( renderer );
+        bloomComposer.renderToScreen = false;
+        bloomComposer.addPass( renderScene );
+        bloomComposer.addPass( bloomPass );
+
+        const finalPass = new ShaderPass(
+            new THREE.ShaderMaterial( {
+                uniforms: {
+                    baseTexture: { value: null },
+                    bloomTexture: { value: bloomComposer.renderTarget2.texture }
+                },
+                vertexShader: document.getElementById( 'vertexshader' ).textContent,
+                fragmentShader: document.getElementById( 'fragmentshader' ).textContent,
+                defines: {}
+            } ), 'baseTexture'
+        );
+        finalPass.needsSwap = true;
+
+        const finalComposer = new EffectComposer( renderer );
+        finalComposer.addPass( renderScene );
+        finalComposer.addPass( finalPass );
+        finalComposer.addPass( new OutputPass() );
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame( animate );
+            render();
+        }
+
+        // Render Function
+        function render() {
+            controls.update();
+
+            // Render bloom scene with non-bloomed objects darkened
+            scene.traverse( darkenNonBloomed );
+            bloomComposer.render();
+            scene.traverse( restoreMaterial );
+
+            // Render the final scene
+            finalComposer.render();
+        }
+
+        // Functions to Darken Non-Bloomed Objects
+        function darkenNonBloomed( obj ) {
+            if ( obj.isMesh && bloomLayer.test( obj.layers ) === false ) {
+                materials[ obj.uuid ] = obj.material;
+                obj.material = darkMaterial;
+            }
+        }
+
+        function restoreMaterial( obj ) {
+            if ( materials[ obj.uuid ] ) {
+                obj.material = materials[ obj.uuid ];
+            }
+        }
+
+        // Handle Window Resize
+        window.addEventListener( 'resize', onWindowResize, false );
+
+        function onWindowResize() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize( width, height );
+            bloomComposer.setSize( width, height );
+            finalComposer.setSize( width, height );
+        }
+
+        animate();
+
+    </script>
+</body>
+</html>
