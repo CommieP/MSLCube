@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <title>Selective Bloom with Two Cubes</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 </head>
+
 <body>
     <!-- Vertex Shader -->
     <script type="x-shader/x-vertex" id="vertexshader">
@@ -39,7 +41,7 @@
         // Bloom Layer
         const BLOOM_SCENE = 1;
         const bloomLayer = new THREE.Layers();
-        bloomLayer.set( BLOOM_SCENE );
+        bloomLayer.set(BLOOM_SCENE);
 
         // Bloom Parameters
         const params = {
@@ -48,79 +50,135 @@
             bloomRadius: 0.2
         };
 
-        const darkMaterial = new THREE.MeshBasicMaterial( { color: 'black' } );
+        const darkMaterial = new THREE.MeshBasicMaterial({ color: 'black' });
         const materials = {};
 
         // Renderer Initialization
-        const renderer = new THREE.WebGLRenderer( { antialias: true } );
-        renderer.setPixelRatio( window.devicePixelRatio );
-        renderer.setSize( window.innerWidth, window.innerHeight );
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.toneMapping = THREE.ReinhardToneMapping;
-        document.body.appendChild( renderer.domElement );
+        document.body.appendChild(renderer.domElement);
 
         // Scene and Camera
         const scene = new THREE.Scene();
 
-        const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 100 );
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         camera.position.z = 5;
 
         // Controls
-        const controls = new OrbitControls( camera, renderer.domElement );
+        const controls = new OrbitControls(camera, renderer.domElement);
         controls.update();
 
         // Objects
-        const geometry = new THREE.BoxGeometry();
-        const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+        // const geometry = new THREE.BoxGeometry();
 
-        // Glowing Cube
-        const glowingCube = new THREE.Mesh( geometry, material );
-        glowingCube.position.x = -1.5;
-        glowingCube.layers.enable( BLOOM_SCENE ); // Enable bloom layer
-        scene.add( glowingCube );
 
-        // Non-Glowing Cube
-        const normalCube = new THREE.Mesh( geometry, material );
-        normalCube.position.x = 1.5;
-        scene.add( normalCube ); // This cube is not added to the bloom layer
+        function smallestCube(color, x, y, z, parent) {
+            const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+            const material = new THREE.MeshBasicMaterial({ color: color });
 
-        // Clone Materials
-        scene.traverse( ( obj ) => {
-            if ( obj.isMesh ) {
-                materials[ obj.uuid ] = obj.material;
+            const cube = new THREE.Mesh(geometry, material)
+            // cube.layers.enable(BLOOM_SCENE);
+            parent.add(cube)
+            cube.position.set(x, y, z);
+
+            cube.toggleBloom = function (enable) {
+                if (enable) {
+                    cube.layers.enable(BLOOM_SCENE);
+                } else {
+                    cube.layers.disable(BLOOM_SCENE);
+                }
+            };
+            return cube
+        }
+
+
+
+        function fdUnit(color, x, y, z) {
+            const unit = new THREE.Object3D();
+
+            // Create six cubes and store them
+            const sCube1 = smallestCube(color, 0.1, 0, 0, unit);
+            const sCube2 = smallestCube(color, -0.1, 0, 0, unit);
+            const sCube3 = smallestCube(color, 0, 0.1, 0, unit);
+            const sCube4 = smallestCube(color, 0, -0.1, 0, unit);
+            const sCube5 = smallestCube(color, 0, 0, 0.1, unit);
+            const sCube6 = smallestCube(color, 0, 0, -0.1, unit);
+
+            const cubes = [sCube1, sCube2, sCube3, sCube4, sCube5, sCube6];
+            scene.add(unit);
+            unit.position.set(x, y, z);
+
+            unit.glowCubes = function (num) {
+                if (num < 1 || num > 6) return;
+
+                let delay = 100; 
+                let currentCube = 0;
+
+                function glowNextCube() {
+                    if (currentCube < num) {
+                        cubes[currentCube].toggleBloom(true); 
+                        currentCube++;
+                        setTimeout(glowNextCube, delay); 
+                    } else {
+                        setTimeout(() => {
+                            cubes.forEach(cube => cube.toggleBloom(false));
+                        }, delay);
+                    }
+                }
+
+                glowNextCube();
+            };
+
+            return unit;
+        }
+        const myUnit = fdUnit(0xff0000, 0, 0, 0); 
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'g') {  
+                myUnit.glowCubes(6);  
+            }
+        });
+
+
+        scene.traverse((obj) => {
+            if (obj.isMesh) {
+                materials[obj.uuid] = obj.material;
             }
         });
 
         // Post-Processing Setup
-        const renderScene = new RenderPass( scene, camera );
+        const renderScene = new RenderPass(scene, camera);
 
-        const bloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), params.bloomStrength, params.bloomRadius, params.bloomThreshold );
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), params.bloomStrength, params.bloomRadius, params.bloomThreshold);
 
-        const bloomComposer = new EffectComposer( renderer );
+        const bloomComposer = new EffectComposer(renderer);
         bloomComposer.renderToScreen = false;
-        bloomComposer.addPass( renderScene );
-        bloomComposer.addPass( bloomPass );
+        bloomComposer.addPass(renderScene);
+        bloomComposer.addPass(bloomPass);
 
         const finalPass = new ShaderPass(
-            new THREE.ShaderMaterial( {
+            new THREE.ShaderMaterial({
                 uniforms: {
                     baseTexture: { value: null },
                     bloomTexture: { value: bloomComposer.renderTarget2.texture }
                 },
-                vertexShader: document.getElementById( 'vertexshader' ).textContent,
-                fragmentShader: document.getElementById( 'fragmentshader' ).textContent,
+                vertexShader: document.getElementById('vertexshader').textContent,
+                fragmentShader: document.getElementById('fragmentshader').textContent,
                 defines: {}
-            } ), 'baseTexture'
+            }), 'baseTexture'
         );
         finalPass.needsSwap = true;
 
-        const finalComposer = new EffectComposer( renderer );
-        finalComposer.addPass( renderScene );
-        finalComposer.addPass( finalPass );
-        finalComposer.addPass( new OutputPass() );
+        const finalComposer = new EffectComposer(renderer);
+        finalComposer.addPass(renderScene);
+        finalComposer.addPass(finalPass);
+        finalComposer.addPass(new OutputPass());
 
         // Animation Loop
         function animate() {
-            requestAnimationFrame( animate );
+            requestAnimationFrame(animate);
             render();
         }
 
@@ -129,30 +187,30 @@
             controls.update();
 
             // Render bloom scene with non-bloomed objects darkened
-            scene.traverse( darkenNonBloomed );
+            scene.traverse(darkenNonBloomed);
             bloomComposer.render();
-            scene.traverse( restoreMaterial );
+            scene.traverse(restoreMaterial);
 
             // Render the final scene
             finalComposer.render();
         }
 
         // Functions to Darken Non-Bloomed Objects
-        function darkenNonBloomed( obj ) {
-            if ( obj.isMesh && bloomLayer.test( obj.layers ) === false ) {
-                materials[ obj.uuid ] = obj.material;
+        function darkenNonBloomed(obj) {
+            if (obj.isMesh && bloomLayer.test(obj.layers) === false) {
+                materials[obj.uuid] = obj.material;
                 obj.material = darkMaterial;
             }
         }
 
-        function restoreMaterial( obj ) {
-            if ( materials[ obj.uuid ] ) {
-                obj.material = materials[ obj.uuid ];
+        function restoreMaterial(obj) {
+            if (materials[obj.uuid]) {
+                obj.material = materials[obj.uuid];
             }
         }
 
         // Handle Window Resize
-        window.addEventListener( 'resize', onWindowResize, false );
+        window.addEventListener('resize', onWindowResize, false);
 
         function onWindowResize() {
             const width = window.innerWidth;
@@ -161,13 +219,14 @@
             camera.aspect = width / height;
             camera.updateProjectionMatrix();
 
-            renderer.setSize( width, height );
-            bloomComposer.setSize( width, height );
-            finalComposer.setSize( width, height );
+            renderer.setSize(width, height);
+            bloomComposer.setSize(width, height);
+            finalComposer.setSize(width, height);
         }
 
         animate();
 
     </script>
 </body>
+
 </html>
