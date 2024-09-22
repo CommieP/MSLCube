@@ -48,7 +48,7 @@
 
         // Bloom Parameters
         const params = {
-            bloomStrength: 0.6,
+            bloomStrength: 0.4,
             bloomThreshold: 0,
             bloomRadius: 0.3
         };
@@ -59,19 +59,42 @@
         // Renderer Initialization
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setSize(800, 800);
         renderer.toneMapping = THREE.ReinhardToneMapping;
         document.body.appendChild(renderer.domElement);
+        console.log(window.innerHeight)
 
         // Scene and Camera
         const scene = new THREE.Scene();
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.z = 5;
+        const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 100);
+        camera.position.z = 6 ;
 
         // Controls
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.update();
+        // const controls = new OrbitControls(camera, renderer.domElement);
+        // controls.update();
+
+        const rotationSpeed = 0.01;
+        let rotationDirection = new THREE.Vector3(
+            (Math.random() - 0.5) * 2, // Random value between -1 and 1 for X axis
+            (Math.random() - 0.5) * 2, // Random value between -1 and 1 for Y axis
+            (Math.random() - 0.5) * 2  // Random value between -1 and 1 for Z axis
+        ).normalize(); // Normalize to keep the speed consistent
+
+        // Function to update the camera's rotation randomly on all axes
+        function rotateCameraRandomly() {
+            // Create a rotation matrix from the direction vector
+            const rotationMatrix = new THREE.Matrix4();
+            rotationMatrix.makeRotationFromEuler(
+                new THREE.Euler(
+                    rotationSpeed * rotationDirection.x,
+                    rotationSpeed * rotationDirection.y,
+                    rotationSpeed * rotationDirection.z
+                )
+            );
+            camera.position.applyMatrix4(rotationMatrix);
+            camera.lookAt(0, 0, 0);
+        }
 
         function smallestCube(color, x, y, z, parent) {
             const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
@@ -81,13 +104,18 @@
             parent.add(cube);
             cube.position.set(x, y, z);
 
-            // Toggle bloom effect on or off
+            cube.originalColor = color;
+
+            // Toggle bloom effect and set a random color when enabled
             cube.toggleBloom = function (enable) {
                 if (enable) {
                     cube.layers.enable(BLOOM_SCENE);
+                    cube.material.color.set(0xff0000);
                 } else {
                     cube.layers.disable(BLOOM_SCENE);
+                    cube.material.color.set(0x3b0202)
                 }
+
             };
 
             return cube;
@@ -191,7 +219,7 @@
             return cube;
         }
 
-        function tdUnit (color, color1, color2, x, y, z){
+        function tdUnit(color, color1, color2, x, y, z) {
             const unit = new THREE.Object3D();
             unit.position.set(x, y, z);
 
@@ -201,7 +229,7 @@
             bigCube(color, 0, -0.9, 0, unit);
             bigCube(color, 0, 0, 0.9, unit);
             bigCube(color, 0, 0, -0.9, unit);
-            
+
             const sdUnits = [
                 sdUnit(color1, color2, 0.9, 0.9, 0, unit),
                 sdUnit(color1, color2, 0.9, 0.9, 0.9, unit),
@@ -225,10 +253,10 @@
                 sdUnit(color1, color2, 0.9, -0.9, -0.9, unit)
             ]
             scene.add(unit)
-            return(sdUnits)
+            return (sdUnits)
         }
 
-        const myUnit = tdUnit(0x2e1a00, 0x2e1a00, 0xff0000, 0, 0, 0);
+        const myUnit = tdUnit(0x101012, 0x1e1e1f, 0x3b0202, 0, 0, 0);
         myUnit[0].glowFdUnits(5)
 
 
@@ -267,15 +295,88 @@
         finalComposer.addPass(new OutputPass());
 
         // Animation Loop
+        let frameCounter = 0;
+        const updateEveryNFrames = 20; // Update every 60 frames (roughly once per second at 60fps)
+
+        const listener = new THREE.AudioListener();
+        camera.add(listener);
+
+        // create an Audio source
+        const sound = new THREE.Audio(listener);
+
+        // load a sound and set it as the Audio object's buffer
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load('audio/audio.mp3', function (buffer) {
+            sound.setBuffer(buffer);
+            sound.setLoop(true);
+            sound.setVolume(0.5);
+        });
+
+        // create an AudioAnalyser, passing in the sound and desired fftSize
+        const analyser = new THREE.AudioAnalyser(sound, 64);
+
+        let isPlaying = false;
+
+
+        document.addEventListener('keydown', function (event) {
+            if (event.code === 'Space') {
+                // Toggle play/pause on spacebar press
+                if (isPlaying) {
+                    sound.pause();
+                } else {
+                    sound.play();
+                }
+                isPlaying = !isPlaying;
+            }
+        });
+
         function animate() {
+            rotateCameraRandomly();
+
+            let data = [];
+
+            if (isPlaying) {
+                const frequencyData = analyser.getFrequencyData();
+
+                // Convert frequencyData from object to an array of values
+                const frequencyArray = Object.values(frequencyData);
+
+                // Find the middle 20 elements from the array
+                const midStart = Math.floor((frequencyArray.length / 2) - 10);
+                const midEnd = midStart + 20;
+
+                // Extract the middle 20 elements
+                const midFrequencyData = frequencyArray.slice(midStart, midEnd);
+
+                // Map the values to a range of 0-20 and store them in the data array
+                data = midFrequencyData.map(value => {
+                    // Map value from range 0-255 to 0-20
+                    return (Math.floor  ((value / 255) * 20));
+                });
+
+                console.log(data); 
+
+                for (let i = 0; i < myUnit.length; i++) {
+                    myUnit[i].glowFdUnits(data[i]); // Randomly glow units between 0 and 20
+                } 
+            }
+
+            // Only run the loop every N frames
+            if (frameCounter == 20) {
+                
+            }
+
+            frameCounter++;
+            if (frameCounter > updateEveryNFrames) {
+                frameCounter = 0
+            }
             requestAnimationFrame(animate);
             render();
         }
 
         // Render Function
         function render() {
-            controls.update();
-
+            // controls.update();
             // Render bloom scene with non-bloomed objects darkened
             scene.traverse(darkenNonBloomed);
             bloomComposer.render();
@@ -298,22 +399,6 @@
                 obj.material = materials[obj.uuid];
             }
         }
-
-        // Handle Window Resize
-        window.addEventListener('resize', onWindowResize, false);
-
-        function onWindowResize() {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-
-            renderer.setSize(width, height);
-            bloomComposer.setSize(width, height);
-            finalComposer.setSize(width, height);
-        }
-
         animate();
 
     </script>
