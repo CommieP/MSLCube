@@ -67,14 +67,13 @@
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
         camera.position.z = 5;
 
+        const clock = new THREE.Clock();
+
         // Controls
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.update();
 
         // Objects
-        // const geometry = new THREE.BoxGeometry();
-
-
         function smallestCube(color, x, y, z, parent) {
             const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
             const material = new THREE.MeshBasicMaterial({ color: color });
@@ -87,14 +86,14 @@
             cube.toggleBloom = function (enable) {
                 if (enable) {
                     cube.layers.enable(BLOOM_SCENE);
+                    cube.material.color.set(color)
                 } else {
                     cube.layers.disable(BLOOM_SCENE);
+                    cube.material.color.set(0x013220)
                 }
             };
             return cube
         }
-
-
 
         function fdUnit(color, x, y, z, parent) {
             const unit = new THREE.Object3D();
@@ -118,7 +117,7 @@
             return unit;
         }
 
-        function sdUnit(color, color1, x, y, z, rotX, rotY, rotZ, variant) {
+        function sdUnit(color, color1, x, y, z, rotX, rotY, rotZ, variant, parent) {
             const unit = new THREE.Object3D;
 
             const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
@@ -202,42 +201,39 @@
 
             unit.glowUnit = (numCubes) => {
                 fdCubes.forEach(cube => cube.glowCubes(false));
-                for (let i = 0; i < numCubes; i++){
+                for (let i = 0; i < numCubes; i++) {
                     fdCubes[i].glowCubes(true);
                 }
             }
 
-            scene.add(unit);
+            parent.add(unit);
             return (unit);
         }
 
-        const myUnit1 = sdUnit(0xff0000, 0x00ff00, 0.9, 0.9, 0.9, 0, 0, 0, false);
-        const myUnit2 = sdUnit(0xff0000, 0x00ff00, 0, 0.9, 0.9, 0, 0, 0, true);
-        const myUnit3 = sdUnit(0xff0000, 0x00ff00, -0.9, 0.9, 0.9, 0, -Math.PI / 2, 0, false);
-        const myUnit4 = sdUnit(0xff0000, 0x00ff00, -0.9, 0.9, 0, 0, -Math.PI / 2, 0, true);
-        const myUnit5 = sdUnit(0xff0000, 0x00ff00, -0.9, 0.9, -0.9, 0, -Math.PI, 0, false);
-        const myUnit6 = sdUnit(0xff0000, 0x00ff00, 0, 0.9, -0.9, 0, Math.PI, 0, true);
-        const myUnit7 = sdUnit(0xff0000, 0x00ff00, 0.9, 0.9, -0.9, 0, Math.PI/2, 0, false);
-        const myUnit8 = sdUnit(0xff0000, 0x00ff00, 0.9, 0.9, 0, 0, Math.PI / 2, 0, true);
-        const myUnit9 = sdUnit(0xff0000, 0x00ff00, 0.9, 0, 0.9, 0, 0, -Math.PI/2, true);
-        const myUnit10 = sdUnit(0xff0000, 0x00ff00, -0.9, 0, 0.9, 0, 0, Math.PI/2, true);
-        const myUnit11 = sdUnit(0xff0000, 0x00ff00, -0.9, 0, -0.9, 0, -Math.PI/2, Math.PI/2, true);
-        const myUnit12 = sdUnit(0xff0000, 0x00ff00, 0.9, 0, -0.9, 0, Math.PI, Math.PI/2, true);
-        const myUnit13 = sdUnit(0xff0000, 0x00ff00, 0.9, -0.9, -0.9, 0, Math.PI/2, -Math.PI/2, false);
-        const myUnit14 = sdUnit(0xff0000, 0x00ff00, 0, -0.9, -0.9, Math.PI, 0 , 0, true);
-        const myUnit15 = sdUnit(0xff0000, 0x00ff00, -0.9, -0.9, -0.9, 0, Math.PI, -Math.PI/2, false);
-        const myUnit16 = sdUnit(0xff0000, 0x00ff00, -0.9, -0.9, 0, 0, -Math.PI/2, Math.PI, true);
-        const myUnit17 = sdUnit(0xff0000, 0x00ff00, -0.9, -0.9, 0.9, 0, Math.PI/2, Math.PI, false);
-        const myUnit18 = sdUnit(0xff0000, 0x00ff00, 0, -0.9, 0.9, 0, 0, Math.PI, true);
-        const myUnit19 = sdUnit(0xff0000, 0x00ff00, 0.9, -0.9, 0.9, 0, Math.PI/2, Math.PI, false);
-        const myUnit20 = sdUnit(0xff0000, 0x00ff00, 0.9, -0.9, 0, 0, Math.PI/2, Math.PI, true);
+        const mengerSponge = new THREE.Object3D;
 
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'g') {
-                myUnit3.glowUnit(myUnit3.fdUnits)
-            }
-        });
+        const myUnit1 = sdUnit(0xff0000, 0x00ff00, 0.9, 0.9, 0.9, 0, 0, 0, false, mengerSponge);
+        const myUnit2 = sdUnit(0xff0000, 0x00ff00, 0, 0.9, 0.9, 0, 0, 0, true, mengerSponge);
+        const myUnit3 = sdUnit(0xff0000, 0x00ff00, -0.9, 0.9, 0.9, 0, -Math.PI / 2, 0, false, mengerSponge);
+        const myUnit4 = sdUnit(0xff0000, 0x00ff00, -0.9, 0.9, 0, 0, -Math.PI / 2, 0, true, mengerSponge);
+        const myUnit5 = sdUnit(0xff0000, 0x00ff00, -0.9, 0.9, -0.9, 0, -Math.PI, 0, false, mengerSponge);
+        const myUnit6 = sdUnit(0xff0000, 0x00ff00, 0, 0.9, -0.9, 0, Math.PI, 0, true, mengerSponge);
+        const myUnit7 = sdUnit(0xff0000, 0x00ff00, 0.9, 0.9, -0.9, 0, Math.PI / 2, 0, false, mengerSponge);
+        const myUnit8 = sdUnit(0xff0000, 0x00ff00, 0.9, 0.9, 0, 0, Math.PI / 2, 0, true, mengerSponge);
+        const myUnit9 = sdUnit(0xff0000, 0x00ff00, 0.9, 0, 0.9, 0, 0, -Math.PI / 2, true, mengerSponge);
+        const myUnit10 = sdUnit(0xff0000, 0x00ff00, -0.9, 0, 0.9, 0, 0, Math.PI / 2, true, mengerSponge);
+        const myUnit11 = sdUnit(0xff0000, 0x00ff00, -0.9, 0, -0.9, 0, -Math.PI / 2, Math.PI / 2, true, mengerSponge);
+        const myUnit12 = sdUnit(0xff0000, 0x00ff00, 0.9, 0, -0.9, 0, Math.PI, Math.PI / 2, true, mengerSponge);
+        const myUnit13 = sdUnit(0xff0000, 0x00ff00, 0.9, -0.9, -0.9, 0, Math.PI / 2, -Math.PI / 2, false, mengerSponge);
+        const myUnit14 = sdUnit(0xff0000, 0x00ff00, 0, -0.9, -0.9, Math.PI, 0, 0, true, mengerSponge);
+        const myUnit15 = sdUnit(0xff0000, 0x00ff00, -0.9, -0.9, -0.9, 0, Math.PI, -Math.PI / 2, false, mengerSponge);
+        const myUnit16 = sdUnit(0xff0000, 0x00ff00, -0.9, -0.9, 0, 0, -Math.PI / 2, Math.PI, true, mengerSponge);
+        const myUnit17 = sdUnit(0xff0000, 0x00ff00, -0.9, -0.9, 0.9, 0, Math.PI / 2, Math.PI, false, mengerSponge);
+        const myUnit18 = sdUnit(0xff0000, 0x00ff00, 0, -0.9, 0.9, 0, 0, Math.PI, true, mengerSponge);
+        const myUnit19 = sdUnit(0xff0000, 0x00ff00, 0.9, -0.9, 0.9, 0, Math.PI / 2, Math.PI, false, mengerSponge);
+        const myUnit20 = sdUnit(0xff0000, 0x00ff00, 0.9, -0.9, 0, 0, Math.PI / 2, Math.PI, true, mengerSponge);
 
+        scene.add(mengerSponge);
 
         scene.traverse((obj) => {
             if (obj.isMesh) {
@@ -273,8 +269,74 @@
         finalComposer.addPass(finalPass);
         finalComposer.addPass(new OutputPass());
 
+        let time = 0;
+
+        const listener = new THREE.AudioListener();
+        camera.add(listener);
+
+        // create an Audio source
+        const sound = new THREE.Audio(listener);
+
+        // load a sound and set it as the Audio object's buffer
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load('audio/audio.mp3', function (buffer) {
+            sound.setBuffer(buffer);
+            sound.setLoop(true);
+            sound.setVolume(0.5);
+        });
+
+        // create an AudioAnalyser, passing in the sound and desired fftSize
+        const analyser = new THREE.AudioAnalyser(sound, 64);
+
+        // get the average frequency of the sound
+
+        let isPlaying = false;
+
+        document.addEventListener('keydown', function (event) {
+            if (event.code === 'Space') {
+                // Toggle play/pause on spacebar press
+                if (isPlaying) {
+                    sound.pause();
+                } else {
+                    sound.play();
+                }
+                isPlaying = !isPlaying;
+            }
+        });
+
+        let data = [];
+        const rotationSpeed = 1;
+
         // Animation Loop
         function animate() {
+            const delta = clock.getDelta();
+            const data = analyser.getFrequencyData();
+            if (isPlaying) {
+                const frequencyData = analyser.getFrequencyData();
+
+                // Convert frequencyData from object to an array of values
+                const frequencyArray = Object.values(frequencyData);
+
+                // Extract the middle 20 elements
+                const midFrequencyData = frequencyArray.slice(0, 20);
+                console.log(midFrequencyData);
+
+                // Loop over each child of the mengerSponge (assuming 20 children)
+                mengerSponge.children.forEach((child, index) => {
+                    const fdUnit = child.fdUnits;
+                    // Map the frequency data value at the current index to the range 0 to fdUnit
+                    const mappedValue = (midFrequencyData[index] / 255) * fdUnit;
+                    console.log(mappedValue);
+                    child.glowUnit(Math.floor(mappedValue));
+                });
+
+                console.log(midFrequencyData);  // Logs the middle 20 frequency data values
+            }
+
+            // Adjust this value for faster/slower rotation
+            mengerSponge.rotation.x += rotationSpeed * delta;
+            mengerSponge.rotation.y += rotationSpeed * delta;
+            mengerSponge.rotation.z += rotationSpeed * delta;
             requestAnimationFrame(animate);
             render();
         }
@@ -282,13 +344,9 @@
         // Render Function
         function render() {
             controls.update();
-
-            // Render bloom scene with non-bloomed objects darkened
             scene.traverse(darkenNonBloomed);
             bloomComposer.render();
             scene.traverse(restoreMaterial);
-
-            // Render the final scene
             finalComposer.render();
         }
 
@@ -315,7 +373,6 @@
 
             camera.aspect = width / height;
             camera.updateProjectionMatrix();
-
             renderer.setSize(width, height);
             bloomComposer.setSize(width, height);
             finalComposer.setSize(width, height);
