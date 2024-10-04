@@ -5,6 +5,7 @@
     <title>Selective Bloom with Two Cubes</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="css/main.css">
 </head>
 
 <body>
@@ -95,7 +96,7 @@
 
 
 
-        function fdUnit(color, x, y, z) {
+        function fdUnit(color, x, y, z, parent) {
             const unit = new THREE.Object3D();
 
             // Create six cubes and store them
@@ -107,37 +108,133 @@
             const sCube6 = smallestCube(color, 0, 0, -0.1, unit);
 
             const cubes = [sCube1, sCube2, sCube3, sCube4, sCube5, sCube6];
-            scene.add(unit);
+            parent.add(unit);
             unit.position.set(x, y, z);
 
-            unit.glowCubes = function (num) {
-                if (num < 1 || num > 6) return;
-
-                let delay = 100; 
-                let currentCube = 0;
-
-                function glowNextCube() {
-                    if (currentCube < num) {
-                        cubes[currentCube].toggleBloom(true); 
-                        currentCube++;
-                        setTimeout(glowNextCube, delay); 
-                    } else {
-                        setTimeout(() => {
-                            cubes.forEach(cube => cube.toggleBloom(false));
-                        }, delay);
-                    }
-                }
-
-                glowNextCube();
+            unit.glowCubes = function (toggle) {
+                cubes.forEach(cube => cube.toggleBloom(toggle));
             };
 
             return unit;
         }
-        const myUnit = fdUnit(0xff0000, 0, 0, 0); 
+
+        function sdUnit(color, color1, x, y, z, rotX, rotY, rotZ, variant) {
+            const unit = new THREE.Object3D;
+
+            const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+            const material = new THREE.MeshBasicMaterial({ color: color });
+
+            const cube1 = new THREE.Mesh(geometry, material);
+            cube1.layers.disable(BLOOM_SCENE);
+            unit.add(cube1)
+            cube1.position.set(0, 0.3, 0);
+
+            const cube2 = new THREE.Mesh(geometry, material);
+            cube2.layers.disable(BLOOM_SCENE);
+            unit.add(cube2)
+            cube2.position.set(0, -0.3, 0);
+
+            const cube3 = new THREE.Mesh(geometry, material);
+            cube3.layers.disable(BLOOM_SCENE);
+            unit.add(cube3)
+            cube3.position.set(0.3, 0, 0);
+
+            const cube4 = new THREE.Mesh(geometry, material);
+            cube4.layers.disable(BLOOM_SCENE);
+            unit.add(cube4)
+            cube4.position.set(-0.3, 0, 0);
+
+            const cube5 = new THREE.Mesh(geometry, material);
+            cube5.layers.disable(BLOOM_SCENE);
+            unit.add(cube5)
+            cube5.position.set(0, 0, 0.3);
+
+            const cube6 = new THREE.Mesh(geometry, material);
+            cube6.layers.disable(BLOOM_SCENE);
+            unit.add(cube6)
+            cube6.position.set(0, 0, -0.3);
+
+            let fdCubes;
+            if (!variant) {
+                fdCubes = [
+                    fdUnit(color1, 0.3, 0.3, 0.3, unit),
+                    fdUnit(color1, 0, 0.3, 0.3, unit),
+                    fdUnit(color1, 0.3, 0, 0.3, unit),
+                    fdUnit(color1, 0.3, 0.3, 0, unit),
+                    fdUnit(color1, 0.3, 0.3, -0.3, unit),
+                    fdUnit(color1, 0.3, 0, -0.3, unit),
+                    fdUnit(color1, 0.3, -0.3, -0.3, unit),
+                    fdUnit(color1, 0.3, -0.3, 0, unit),
+                    fdUnit(color1, 0.3, -0.3, 0.3, unit),
+                    fdUnit(color1, 0, -0.3, 0.3, unit),
+                    fdUnit(color1, -0.3, -0.3, 0.3, unit),
+                    fdUnit(color1, -0.3, 0, 0.3, unit),
+                    fdUnit(color1, -0.3, 0.3, 0.3, unit),
+                    fdUnit(color1, -0.3, 0.3, 0, unit),
+                    fdUnit(color1, -0.3, 0.3, -0.3, unit),
+                    fdUnit(color1, 0, 0.3, -0.3, unit),
+                ]
+            } else {
+                fdCubes = [
+                    fdUnit(color1, 0, 0.3, 0.3, unit),
+                    fdUnit(color1, 0.3, 0.3, 0.3, unit),
+                    fdUnit(color1, 0.3, 0.3, 0, unit),
+                    fdUnit(color1, 0.3, 0.3, -0.3, unit),
+                    fdUnit(color1, 0, 0.3, -0.3, unit),
+                    fdUnit(color1, -0.3, 0.3, -0.3, unit),
+                    fdUnit(color1, -0.3, 0.3, 0, unit),
+                    fdUnit(color1, -0.3, 0.3, 0.3, unit),
+                    fdUnit(color1, -0.3, 0.3, 0.3, unit),
+                    fdUnit(color1, -0.3, 0, 0.3, unit),
+                    fdUnit(color1, -0.3, -0.3, 0.3, unit),
+                    fdUnit(color1, 0, -0.3, 0.3, unit),
+                    fdUnit(color1, 0.3, -0.3, 0.3, unit),
+                    fdUnit(color1, 0.3, 0, 0.3, unit),
+                ]
+            }
+
+            unit.fdUnits = fdCubes.length;
+
+            unit.position.set(x, y, z);
+            unit.rotation.x = rotX;
+            unit.rotation.y = rotY;
+            unit.rotation.z = rotZ;
+
+            unit.glowUnit = (numCubes) => {
+                fdCubes.forEach(cube => cube.glowCubes(false));
+                for (let i = 0; i < numCubes; i++){
+                    fdCubes[i].glowCubes(true);
+                }
+            }
+
+            scene.add(unit);
+            return (unit);
+        }
+
+        const myUnit1 = sdUnit(0xff0000, 0x00ff00, 0.9, 0.9, 0.9, 0, 0, 0, false);
+        const myUnit2 = sdUnit(0xff0000, 0x00ff00, 0, 0.9, 0.9, 0, 0, 0, true);
+        const myUnit3 = sdUnit(0xff0000, 0x00ff00, -0.9, 0.9, 0.9, 0, -Math.PI / 2, 0, false);
+        const myUnit4 = sdUnit(0xff0000, 0x00ff00, -0.9, 0.9, 0, 0, -Math.PI / 2, 0, true);
+        const myUnit5 = sdUnit(0xff0000, 0x00ff00, -0.9, 0.9, -0.9, 0, -Math.PI, 0, false);
+        const myUnit6 = sdUnit(0xff0000, 0x00ff00, 0, 0.9, -0.9, 0, Math.PI, 0, true);
+        const myUnit7 = sdUnit(0xff0000, 0x00ff00, 0.9, 0.9, -0.9, 0, Math.PI/2, 0, false);
+        const myUnit8 = sdUnit(0xff0000, 0x00ff00, 0.9, 0.9, 0, 0, Math.PI / 2, 0, true);
+        const myUnit9 = sdUnit(0xff0000, 0x00ff00, 0.9, 0, 0.9, 0, 0, -Math.PI/2, true);
+        const myUnit10 = sdUnit(0xff0000, 0x00ff00, -0.9, 0, 0.9, 0, 0, Math.PI/2, true);
+        const myUnit11 = sdUnit(0xff0000, 0x00ff00, -0.9, 0, -0.9, 0, -Math.PI/2, Math.PI/2, true);
+        const myUnit12 = sdUnit(0xff0000, 0x00ff00, 0.9, 0, -0.9, 0, Math.PI, Math.PI/2, true);
+        const myUnit13 = sdUnit(0xff0000, 0x00ff00, 0.9, -0.9, -0.9, 0, Math.PI/2, -Math.PI/2, false);
+        const myUnit14 = sdUnit(0xff0000, 0x00ff00, 0, -0.9, -0.9, Math.PI, 0 , 0, true);
+        const myUnit15 = sdUnit(0xff0000, 0x00ff00, -0.9, -0.9, -0.9, 0, Math.PI, -Math.PI/2, false);
+        const myUnit16 = sdUnit(0xff0000, 0x00ff00, -0.9, -0.9, 0, 0, -Math.PI/2, Math.PI, true);
+        const myUnit17 = sdUnit(0xff0000, 0x00ff00, -0.9, -0.9, 0.9, 0, Math.PI/2, Math.PI, false);
+        const myUnit18 = sdUnit(0xff0000, 0x00ff00, 0, -0.9, 0.9, 0, 0, Math.PI, true);
+        const myUnit19 = sdUnit(0xff0000, 0x00ff00, 0.9, -0.9, 0.9, 0, Math.PI/2, Math.PI, false);
+        const myUnit20 = sdUnit(0xff0000, 0x00ff00, 0.9, -0.9, 0, 0, Math.PI/2, Math.PI, true);
 
         document.addEventListener('keydown', (event) => {
-            if (event.key === 'g') {  
-                myUnit.glowCubes(6);  
+            if (event.key === 'g') {
+                myUnit3.glowUnit(myUnit3.fdUnits)
             }
         });
 
